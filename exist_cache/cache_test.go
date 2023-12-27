@@ -16,7 +16,7 @@ func TestCache(t *testing.T) {
 	PatchConvey("基本操作", t, func() {
 		cache, err := NewCache(NewConfig().WithLoad(func(ctx context.Context, i int64) bool {
 			return i%2 == 0
-		}))
+		}).WithSize(100_0000))
 		So(err, ShouldBeNil)
 		So(cache.Has(ctx, 1), ShouldEqual, false)
 		So(cache.Has(ctx, 2), ShouldEqual, true)
@@ -56,12 +56,33 @@ func TestCache(t *testing.T) {
 	})
 }
 
-func BenchmarkCache(b *testing.B) {
-	cache, _ := NewCache(NewConfig().WithLoad(func(ctx context.Context, i int64) bool {
+func TestConfig_checkCfg(t *testing.T) {
+	PatchConvey("[WithShardCount] success", t, func() {
+		cfg := NewConfig()
+		err := cfg.checkCfg()
+		So(err, ShouldBeNil)
+		So(cfg.shardMark, ShouldEqual, 255)
+
+		cfg = NewConfig().WithShardCount(16)
+		err = cfg.checkCfg()
+		So(err, ShouldBeNil)
+		So(cfg.shardMark, ShouldEqual, 15)
+	})
+	PatchConvey("[WithShardCount] error", t, func() {
+		cfg := NewConfig().WithShardCount(100)
+		err := cfg.checkCfg()
+		So(err, ShouldNotBeNil)
+	})
+}
+
+func BenchmarkCacheGet(b *testing.B) {
+	cfg := NewConfig().WithLoad(func(ctx context.Context, i int64) bool {
 		return true
-	}))
+	}).WithSize(100_0000)
+	cache, _ := NewCache(cfg)
 	ctx := context.Background()
+	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		cache.Set(ctx, int64(i))
+		cache.Has(ctx, int64(i))
 	}
 }

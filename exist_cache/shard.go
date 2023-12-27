@@ -2,7 +2,7 @@ package exist_cache
 
 import (
 	"context"
-	"fmt"
+	"strconv"
 	"sync"
 
 	"golang.org/x/sync/singleflight"
@@ -20,7 +20,13 @@ type shard struct {
 func newShard(cfg *Config) *shard {
 	sd := &shard{}
 	sd.cfg = cfg
-	sd.items = map[int64]struct{}{}
+
+	size := 100
+	if cfg.size > 0 {
+		size = cfg.size/cfg.shardCount + 1
+	}
+	sd.items = make(map[int64]struct{}, size)
+
 	sd.sf = &singleflight.Group{}
 	return sd
 }
@@ -36,7 +42,7 @@ func (c *shard) has(ctx context.Context, key int64) bool {
 	if c.cfg.load == nil {
 		return false
 	}
-	k := fmt.Sprint(key)
+	k := strconv.FormatInt(key, 10)
 	v, _, _ := c.sf.Do(k, func() (interface{}, error) {
 		return c.cfg.load(ctx, key), nil
 	})

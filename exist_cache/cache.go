@@ -3,8 +3,7 @@ package exist_cache
 import (
 	"context"
 	"errors"
-
-	"github.com/spf13/cast"
+	"strconv"
 )
 
 var ErrCfg = errors.New("cfg error")
@@ -19,8 +18,8 @@ type Cache struct {
 
 // NewCache 创建一个缓存
 func NewCache(cfg *Config) (*Cache, error) {
-	if !cfg.checkCfg() {
-		return nil, ErrCfg
+	if err := cfg.checkCfg(); err != nil {
+		return nil, err
 	}
 	cache := &Cache{}
 	cache.cfg = cfg
@@ -48,8 +47,8 @@ func (cache *Cache) Set(ctx context.Context, key int64) {
 
 func (cache *Cache) getShard(key int64) *shard {
 	cfg := cache.cfg
-	hx := cfg.hasher.Sum64(cast.ToString(key))
-	idx := int(hx % uint64(cfg.shardCount))
+	hx := cfg.hasher.Sum64(strconv.FormatInt(key, 10))
+	idx := int(hx & cfg.shardMark)
 	return cache.shards[idx]
 }
 
