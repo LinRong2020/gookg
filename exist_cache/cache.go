@@ -36,13 +36,18 @@ func NewCache(cfg *Config) (*Cache, error) {
 // Has 某个Key是否存在
 func (cache *Cache) Has(ctx context.Context, key int64) bool {
 	sd := cache.getShard(key)
-	return sd.has(ctx, key)
+	sd.Lock()
+	v := sd.has(ctx, key)
+	sd.Unlock()
+	return v
 }
 
 // Set 设置key存在
 func (cache *Cache) Set(ctx context.Context, key int64) {
 	sd := cache.getShard(key)
+	sd.Lock()
 	sd.set(ctx, key)
+	sd.Unlock()
 }
 
 func (cache *Cache) getShard(key int64) *shard {
@@ -53,11 +58,15 @@ func (cache *Cache) getShard(key int64) *shard {
 }
 
 // len Cache的缓存个数
+// 开启逐出时，包括oldItems
 func (cache *Cache) len() int {
 	var l int
 	for _, sd := range cache.shards {
 		sd.Lock()
 		l += len(sd.items)
+		if cache.cfg.evict {
+			l += len(sd.oldItems)
+		}
 		sd.Unlock()
 	}
 	return l
